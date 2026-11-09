@@ -14,6 +14,22 @@ def run(command):
     subprocess.run([str(argument) for argument in command], check=True)
 
 
+def prepare_sdk_headers(sdk, build):
+    # Older SDKs spell a copy constructor with a template-id, which is invalid
+    # in C++20. Correct only that declaration in a build-local header overlay.
+    header = sdk / 'public/tier0/threadtools.h'
+    original = header.read_bytes()
+    legacy_declaration = b'CAutoLockT<MUTEX_TYPE>( const CAutoLockT<MUTEX_TYPE> & );'
+    corrected_declaration = b'CAutoLockT( const CAutoLockT<MUTEX_TYPE> & );'
+    if original.count(legacy_declaration) > 1:
+        raise RuntimeError('Ambiguous CAutoLockT copy constructor in {}'.format(header))
+    overlay = build / 'sdk_compat'
+    destination = overlay / 'tier0/threadtools.h'
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(original.replace(legacy_declaration, corrected_declaration))
+    return overlay
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk', required=True, type=Path, help='HL2SDK checkout on its l4d2 branch')
@@ -42,8 +58,11 @@ def main():
         # Recent Clang rejects unused legacy SDK container templates eagerly.
         flags += ['-fdelayed-template-parsing', '-Wno-delayed-template-parsing-in-cxx20',
                   '-Wno-unknown-warning-option']
+    flags += ['-isystem', str(prepare_sdk_headers(sdk, build))]
     for directory in ['public', 'public/engine', 'public/tier0', 'public/tier1', 'common']:
         flags += ['-isystem', str(sdk / directory)]
+    if options.tests:
+        run([sys.executable, repository / 'tests/test_build.py'])
     sources = ['module', 'patch', 'fixes', 'plugin']
     objects = []
     for name in sources:
