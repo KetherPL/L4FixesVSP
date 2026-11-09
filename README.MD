@@ -1,20 +1,20 @@
 ## L4FixesVSP
 
 **L4FixesVSP** (`l4fixes_vsp`) is a Linux i386 Valve Server Plugin for native Left 4 Dead 2
-engine/game fixes. Its VSP lifecycle and patch ownership follow the approach used by Tickrate
-Enabler Remastered. It does not change the tickrate and can run alongside Tickrate Enabler.
+engine/game fixes. Its VSP lifecycle and patch ownership follow the approach used by [Tickrate
+Enabler Remastered](https://github.com/Krevik/Tickrate-Enabler-Remastered). It does not change the tickrate and can run alongside Tickrate Enabler.
 
 The fixes are instruction patches. No SourcePawn, SourceScramble, SourceMod or Metamod installation
 is required, and the plugin performs no per-frame or per-player processing.
 
 ### Included fixes
 
-- **Null CUserCmd lag compensation crash** — ports `l4d2_null_cusercmd_fix.sp` by fdxx.
+- **Null CUserCmd lag compensation crash** — ports [`l4d2_null_cusercmd_fix.sp`](https://github.com/Krevik/Kether.pl-L4D2-Server/blob/kether_2.0/addons/sourcemod/scripting/l4d2_null_cusercmd_fix.sp) by fdxx.
   Patches `CLagCompensationManager::StartLagCompensation` to jump to its existing return path
   when the null-command path is reached.
-- **HLTV client-info crash exploit** — ports `l4d2_hltv_crash_fix.sp` by backwards, ProdigySim
+- **HLTV client-info crash exploit** — ports [`l4d2_hltv_crash_fix.sp`](https://github.com/Krevik/Kether.pl-L4D2-Server/blob/kether_2.0/addons/sourcemod/scripting/l4d2_hltv_crash_fix.sp) by backwards, ProdigySim
   and A1m`. Patches `CBaseClient::ProcessClientInfo` to force the client-supplied HLTV flag to zero.
-- **Boomer ladder fix** — ports `l4d2_boomer_ladder_fix.sp` by BHaType.
+- **Boomer ladder fix** — ports [`l4d2_boomer_ladder_fix.sp`](https://github.com/Krevik/Kether.pl-L4D2-Server/blob/kether_2.0/addons/sourcemod/scripting/l4d2_boomer_ladder_fix.sp) by BHaType.
   Removes the same conditional branch in `CTerrorGameMovement::CheckForLadders` as the SourcePawn fix.
 
 The Linux symbols, offsets, verification bytes and replacement bytes are compiled into
