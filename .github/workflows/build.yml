@@ -1,0 +1,80 @@
+name: build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    tags: ['*']
+    paths-ignore: [LICENSE.txt, README.MD]
+  pull_request:
+    branches: [main, master]
+    paths-ignore: [LICENSE.txt, README.MD]
+  schedule:
+    - cron: '30 03 01 */3 *'
+
+jobs:
+  build:
+    name: Linux i386 (${{ matrix.standard }})
+    # Keep the release glibc requirement compatible with Ubuntu 24.04 servers.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        standard: [c++20, c++23]
+    steps:
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y g++-multilib
+
+      - name: Check out HL2SDK-L4D2
+        uses: actions/checkout@v7
+        with:
+          repository: alliedmodders/hl2sdk
+          ref: l4d2
+          path: hl2sdk-l4d2
+
+      - name: Check out L4FixesVSP
+        uses: actions/checkout@v7
+        with:
+          path: src
+
+      - name: Build and test
+        working-directory: src
+        run: python3 build.py --sdk ../hl2sdk-l4d2 --build-dir build_l4d2 --std=${{ matrix.standard }} --tests
+
+      - name: Verify Linux binary
+        working-directory: src
+        env:
+          MAX_GLIBC: '2.39'
+        run: bash .github/verify_linux_so.sh build_l4d2/package/addons/l4fixes_vsp/l4fixes_vsp.so
+
+      - name: Upload package
+        if: matrix.standard == 'c++20'
+        uses: actions/upload-artifact@v7
+        with:
+          name: l4fixes_vsp-l4d2-linux-${{ github.sha }}
+          path: src/build_l4d2/package
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+
+      - name: Package
+        run: |
+          for folder in l4fixes_vsp-l4d2-linux-*; do
+            tar -czf "$folder.tar.gz" -C "$folder" .
+          done
+
+      - name: Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: '*.tar.gz'
+          tag: ${{ github.ref }}
+          file_glob: true

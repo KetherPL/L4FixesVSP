@@ -1,0 +1,18 @@
+## Ignore build folder
+build/
+build_*/
+build-linux/
+build-linux-*/
+.vs/
+
+## Local dependencies and Python environment
+deps/
+.venv/
+
+## Local tools and downloaded game binaries (for offset verification)
+tools/
+
+## Local helper scripts and Python cache
+agent*.py
+__pycache__/
+*.pyc

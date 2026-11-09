@@ -1,0 +1,6 @@
+# Auto detect text files and perform LF normalization
+* text=auto eol=lf
+
+# Shell scripts and workflows must keep LF endings (they run on Linux runners).
+*.sh  text eol=lf
+*.yml text eol=lf
