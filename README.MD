@@ -54,8 +54,18 @@ python3 build.py --sdk ../hl2sdk-l4d2 --build-dir build --tests
 ```
 
 Use `--cxx clang++` to select Clang, or `--std c++23` to build in C++23 mode. The package is written
-to `build/package`. The SDK is used for interface declarations only; the binary links the C++
-runtime statically to avoid srcds loading its bundled older `libstdc++.so.6`.
+to `build/package`. The SDK is used for interface declarations only. By default, `libstdc++` and
+`libgcc` are linked statically to avoid srcds loading its bundled older C++ runtime.
+
+Use `--shared-runtime` to link both runtimes dynamically:
+
+```sh
+python3 build.py --sdk ../hl2sdk-l4d2 --build-dir build_shared --shared-runtime --tests
+```
+
+Shared builds use the runtime libraries resolved by the server's dynamic loader; those libraries
+must satisfy the binary's `GLIBCXX` and `CXXABI` requirements. CI tests both runtime variants in
+C++20 and C++23 mode and publishes separate `static` and `shared` C++20 packages.
 
 Tests use synthetic shared-library functions, never a running game server. They exercise private
 ELF symbol lookup, malformed ELF rejection, all three patch definitions, rollback, external ownership,
@@ -66,6 +76,7 @@ Build releases on Ubuntu 24.04 to match the glibc ceiling enforced by CI:
 
 ```sh
 MAX_GLIBC=2.39 bash .github/verify_linux_so.sh build/package/addons/l4fixes_vsp/l4fixes_vsp.so
+RUNTIME_LINKAGE=shared MAX_GLIBC=2.39 bash .github/verify_linux_so.sh build_shared/package/addons/l4fixes_vsp/l4fixes_vsp.so
 ```
 
 ### Adding or updating fixes

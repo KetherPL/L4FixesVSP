@@ -14,13 +14,14 @@ on:
 
 jobs:
   build:
-    name: Linux i386 (${{ matrix.standard }})
+    name: Linux i386 (${{ matrix.standard }}, ${{ matrix.runtime_linkage }} runtimes)
     # Keep the release glibc requirement compatible with Ubuntu 24.04 servers.
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         standard: [c++20, c++23]
+        runtime_linkage: [static, shared]
     steps:
       - name: Install build tools
         run: sudo apt-get update && sudo apt-get install -y g++-multilib
@@ -39,19 +40,22 @@ jobs:
 
       - name: Build and test
         working-directory: src
-        run: python3 build.py --sdk ../hl2sdk-l4d2 --build-dir build_l4d2 --std=${{ matrix.standard }} --tests
+        run: >-
+          python3 build.py --sdk ../hl2sdk-l4d2 --build-dir build_l4d2 --std=${{ matrix.standard }} --tests
+          ${{ matrix.runtime_linkage == 'shared' && '--shared-runtime' || '' }}
 
       - name: Verify Linux binary
         working-directory: src
         env:
           MAX_GLIBC: '2.39'
+          RUNTIME_LINKAGE: ${{ matrix.runtime_linkage }}
         run: bash .github/verify_linux_so.sh build_l4d2/package/addons/l4fixes_vsp/l4fixes_vsp.so
 
       - name: Upload package
         if: matrix.standard == 'c++20'
         uses: actions/upload-artifact@v7
         with:
-          name: l4fixes_vsp-l4d2-linux-${{ github.sha }}
+          name: l4fixes_vsp-l4d2-linux-${{ matrix.runtime_linkage }}-${{ github.sha }}
           path: src/build_l4d2/package
 
   release:

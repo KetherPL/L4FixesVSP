@@ -36,6 +36,8 @@ def main():
     parser.add_argument('--build-dir', default=Path('build'), type=Path)
     parser.add_argument('--cxx', default=os.environ.get('CXX', 'c++'))
     parser.add_argument('--std', choices=['c++20', 'c++23'], default='c++20')
+    parser.add_argument('--shared-runtime', action='store_true',
+                        help='Link libstdc++ and libgcc dynamically (default: static)')
     parser.add_argument('--tests', action='store_true', help='Build and run sanitized regression tests')
     options = parser.parse_args()
     if sys.platform != 'linux':
@@ -73,9 +75,10 @@ def main():
     library_directory = package / 'addons/l4fixes_vsp'
     library_directory.mkdir(parents=True, exist_ok=True)
     library = library_directory / 'l4fixes_vsp.so'
+    runtime_flags = ['-shared-libgcc'] if options.shared_runtime else ['-static-libstdc++', '-static-libgcc']
     run([options.cxx, '-m32', '-shared', '-Wl,-z,defs', '-Wl,-z,relro,-z,now',
          '-Wl,--version-script=' + str(repository / 'src/exports.map'),
-         '-static-libstdc++', '-static-libgcc', '-o', library] + objects + ['-ldl'])
+         '-o', library] + objects + runtime_flags + ['-ldl'])
     shutil.copy2(repository / 'extra/l4fixes_vsp.vdf', package / 'addons/l4fixes_vsp.vdf')
     shutil.copy2(repository / 'LICENSE.txt', package / 'LICENSE.txt')
     shutil.copy2(repository / 'README.MD', package / 'README.MD')

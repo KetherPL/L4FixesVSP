@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # Sanity checks for built l4fixes_vsp.so files.
-# Usage: MAX_GLIBC=2.39 bash .github/verify_linux_so.sh <file.so>...
+# Usage: RUNTIME_LINKAGE=static|shared MAX_GLIBC=2.39 bash .github/verify_linux_so.sh <file.so>...
 set -u
 MAX_GLIBC="${MAX_GLIBC:-2.39}"
+RUNTIME_LINKAGE="${RUNTIME_LINKAGE:-static}"
+case "$RUNTIME_LINKAGE" in
+    static|shared) ;;
+    *) echo "::error::RUNTIME_LINKAGE must be static or shared"; exit 2 ;;
+esac
 fail=0
 
 err() { echo "::error::$*"; fail=1; }
@@ -13,8 +18,14 @@ for so in "$@"; do
 
     file "$so" | grep -q 'ELF 32-bit' || err "$so: not a 32-bit ELF (srcds is x86)"
 
-    # srcds puts its own ancient libstdc++.so.6 (CXXABI 1.3.5) first in the library path.
-    readelf -d "$so" | grep 'NEEDED' | grep -q 'libstdc++' && err "$so: links libstdc++ dynamically (use -static-libstdc++)"
+    dependencies=$(readelf -d "$so" | grep 'NEEDED')
+    for runtime in libstdc++ libgcc_s; do
+        if printf '%s\n' "$dependencies" | grep -Fq "[$runtime.so"; then
+            [ "$RUNTIME_LINKAGE" = static ] && err "$so: links $runtime dynamically; expected static runtimes"
+        else
+            [ "$RUNTIME_LINKAGE" = shared ] && err "$so: missing shared $runtime dependency"
+        fi
+    done
 
     nm -D --defined-only "$so" | grep -qw CreateInterface || err "$so: CreateInterface is not exported"
 
