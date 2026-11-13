@@ -7,6 +7,13 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
+
+
+def linker_accepts(cxx, flag):
+    with tempfile.TemporaryDirectory(prefix='l4fixes-probe-') as directory:
+        command = [cxx, '-m32', '-shared', '-x', 'c++', '-', '-o', str(Path(directory) / 'probe.so'), flag]
+        return subprocess.run(command, input=b'int probe;\n', capture_output=True).returncode == 0
 
 
 def run(command):
@@ -81,6 +88,11 @@ def main():
     library_directory.mkdir(parents=True, exist_ok=True)
     library = library_directory / 'l4fixes_vsp.so'
     runtime_flags = ['-shared-libgcc'] if options.shared_runtime else ['-static-libstdc++', '-static-libgcc']
+    # binutils >= 2.45 linking against glibc >= 2.42 adds a GLIBC_ABI_GNU_TLS version dependency to
+    # i386 objects using TLS (the static libstdc++ does); servers with an older glibc then refuse to
+    # load the plugin. Builds made with older binutils never have it.
+    if linker_accepts(options.cxx, '-Wl,--no-gnu-tls-tag'):
+        runtime_flags.append('-Wl,--no-gnu-tls-tag')
     run([options.cxx, '-m32', '-shared', '-Wl,-z,defs', '-Wl,-z,relro,-z,now',
          '-Wl,--version-script=' + str(repository / 'src/exports.map'),
          '-o', library] + objects + sdk_link + runtime_flags + ['-ldl'])
