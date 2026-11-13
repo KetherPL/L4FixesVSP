@@ -35,4 +35,15 @@ _ZN19CTerrorGameMovement15CheckForLaddersEb:
     .byte 0x0F, 0x84, 0xC9, 0xFE, 0xFF, 0xFF
     ret
 .size _ZN19CTerrorGameMovement15CheckForLaddersEb, .-_ZN19CTerrorGameMovement15CheckForLaddersEb
+
+/* The short jump at 0x6F targets 0x90 (the function's return path in the engine). */
+.globl _ZN13CSteam3Server34OnValidateAuthTicketResponseHelperEP11CBaseClient20EAuthSessionResponse
+.hidden _ZN13CSteam3Server34OnValidateAuthTicketResponseHelperEP11CBaseClient20EAuthSessionResponse
+.type _ZN13CSteam3Server34OnValidateAuthTicketResponseHelperEP11CBaseClient20EAuthSessionResponse, @function
+_ZN13CSteam3Server34OnValidateAuthTicketResponseHelperEP11CBaseClient20EAuthSessionResponse:
+    .fill 0x68, 1, 0x90
+    .byte 0x83, 0xBF, 0x98, 0x00, 0x00, 0x00, 0x01, 0x74, 0x1F
+    .fill 0x90 - (. - _ZN13CSteam3Server34OnValidateAuthTicketResponseHelperEP11CBaseClient20EAuthSessionResponse), 1, 0x90
+    ret
+.size _ZN13CSteam3Server34OnValidateAuthTicketResponseHelperEP11CBaseClient20EAuthSessionResponse, .-_ZN13CSteam3Server34OnValidateAuthTicketResponseHelperEP11CBaseClient20EAuthSessionResponse
 .section .note.GNU-stack,"",@progbits

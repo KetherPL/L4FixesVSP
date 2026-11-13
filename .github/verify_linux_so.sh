@@ -29,6 +29,9 @@ for so in "$@"; do
 
     nm -D --defined-only "$so" | grep -qw CreateInterface || err "$so: CreateInterface is not exported"
 
+    # Added by binutils >= 2.45 with glibc >= 2.42; older glibc refuses to load the library.
+    readelf -VW "$so" | grep -q 'GLIBC_ABI_GNU_TLS' && err "$so: requires GLIBC_ABI_GNU_TLS (glibc >= 2.42)"
+
     need=$(objdump -T "$so" | grep -oE 'GLIBC_[0-9.]+' | sed 's/GLIBC_//' | sort -Vu | tail -1)
     echo "   requires glibc $need (max allowed $MAX_GLIBC)"
     newest=$(printf '%s\n%s\n' "$need" "$MAX_GLIBC" | sort -V | tail -1)

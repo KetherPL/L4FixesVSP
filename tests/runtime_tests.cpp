@@ -98,9 +98,11 @@ void TestElf(const LoadedModule& module)
 
 void TestFixes(const LoadedModule& module)
 {
-	std::array<std::vector<Byte>, 3> originals;
-	std::array<std::uintptr_t, 3> addresses;
-	std::array<std::string, 3> permissions;
+	const auto count = FixDefinitions().size();
+	assert(count == 4);
+	std::vector<std::vector<Byte>> originals(count);
+	std::vector<std::uintptr_t> addresses(count);
+	std::vector<std::string> permissions(count);
 	std::size_t index = 0;
 	for (const auto& definition : FixDefinitions())
 	{
@@ -150,7 +152,11 @@ void TestFixes(const LoadedModule& module)
 	CodePatch foreign("foreign edit", addresses[1], hltv.verify, foreignBytes);
 	foreign.Enable();
 	ExpectFailure([&] { manager.EnableAll(); });
-	assert(ReadMemory(addresses[0], originals[0].size()) == originals[0]);
+	for (index = 0; index < count; ++index)
+	{
+		if (index != 1)
+			assert(ReadMemory(addresses[index], originals[index].size()) == originals[index]);
+	}
 	assert(ReadMemory(addresses[1], foreignBytes.size()) == std::vector<Byte>(foreignBytes.begin(), foreignBytes.end()));
 	assert(foreign.Disable());
 	manager.Clear();
@@ -203,6 +209,8 @@ void TestPluginInterface(const char* path)
 }
 }
 
+void TestReliableSound(); // reliablesound_tests.cpp
+
 int main(int argumentCount, char** arguments)
 {
 	assert(argumentCount == 3);
@@ -213,6 +221,7 @@ int main(int argumentCount, char** arguments)
 	TestElf(module);
 	TestFixes(module);
 	TestMemory();
+	TestReliableSound();
 	TestPluginInterface(arguments[2]);
 	std::puts("All L4FixesVSP regression tests passed.");
 }
