@@ -15,8 +15,9 @@ public:
 	void Unload() override;
 	const char* GetPluginDescription() override;
 
-	// These are permanent instruction patches, with no per-frame or per-player work.
-	// Pause leaves the safety fixes active; Unload restores patches owned by this VSP.
+	// These are permanent instruction patches and one server command, with no per-frame or
+	// per-player work. Pause leaves the fixes and the command active; Unload restores patches
+	// owned by this VSP and unregisters the command.
 	void Pause() override {}
 	void UnPause() override {}
 	void LevelInit(const char*) override {}
@@ -34,7 +35,11 @@ public:
 	void OnQueryCvarValueFinished(QueryCvarCookie_t, edict_t*, EQueryCvarValueStatus, const char*, const char*) override {}
 
 private:
+	void RegisterCommands(CreateInterfaceFn engineFactory, CreateInterfaceFn serverFactory, IVEngineServer* engine);
+	void UnregisterCommands() noexcept;
+
 	PatchManager m_patches;
+	bool m_commandsRegistered = false;
 	bool m_loaded = false;
 };
 }

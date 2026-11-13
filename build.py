@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and package the Linux i386 VSP using only an HL2SDK-L4D2 checkout."""
+"""Build and package the Linux i386 VSP using only an HL2SDK-L4D2 checkout (headers and lib/linux)."""
 import argparse
 import os
 from pathlib import Path
@@ -61,11 +61,16 @@ def main():
         flags += ['-fdelayed-template-parsing', '-Wno-delayed-template-parsing-in-cxx20',
                   '-Wno-unknown-warning-option']
     flags += ['-isystem', str(prepare_sdk_headers(sdk, build))]
-    for directory in ['public', 'public/engine', 'public/tier0', 'public/tier1', 'common']:
+    for directory in ['public', 'public/engine', 'public/tier0', 'public/tier1', 'public/game/server', 'common']:
         flags += ['-isystem', str(sdk / directory)]
+    # te_reliable_sound is a tier1 ConCommand. tier1 is linked statically; tier0 and vstdlib are the
+    # libraries srcds has already loaded, so the plugin only records their names.
+    sdk_libraries = sdk / 'lib/linux'
+    sdk_link = [sdk_libraries / 'tier1_i486.a', '-L' + str(sdk_libraries),
+                '-l:libtier0_srv.so', '-l:libvstdlib_srv.so']
     if options.tests:
         run([sys.executable, repository / 'tests/test_build.py'])
-    sources = ['module', 'patch', 'fixes', 'plugin']
+    sources = ['module', 'patch', 'fixes', 'reliablesound', 'plugin']
     objects = []
     for name in sources:
         target = build / (name + '.o')
@@ -78,7 +83,7 @@ def main():
     runtime_flags = ['-shared-libgcc'] if options.shared_runtime else ['-static-libstdc++', '-static-libgcc']
     run([options.cxx, '-m32', '-shared', '-Wl,-z,defs', '-Wl,-z,relro,-z,now',
          '-Wl,--version-script=' + str(repository / 'src/exports.map'),
-         '-o', library] + objects + runtime_flags + ['-ldl'])
+         '-o', library] + objects + sdk_link + runtime_flags + ['-ldl'])
     shutil.copy2(repository / 'extra/l4fixes_vsp.vdf', package / 'addons/l4fixes_vsp.vdf')
     shutil.copy2(repository / 'LICENSE.txt', package / 'LICENSE.txt')
     shutil.copy2(repository / 'README.MD', package / 'README.MD')
@@ -89,7 +94,8 @@ def main():
         executable = build / 'runtime_tests'
         test_sources = [repository / 'src' / (name + '.cpp') for name in sources if name != 'plugin']
         run([options.cxx] + flags + ['-g', '-fsanitize=undefined', '-fno-sanitize-recover=all',
-             repository / 'tests/runtime_tests.cpp'] + test_sources + ['-ldl', '-o', executable])
+             repository / 'tests/runtime_tests.cpp', repository / 'tests/reliablesound_tests.cpp']
+            + test_sources + sdk_link + ['-Wl,-rpath,' + str(sdk_libraries), '-ldl', '-o', executable])
         run([executable, fixture, library])
     print('Package: {}'.format(package))
 
