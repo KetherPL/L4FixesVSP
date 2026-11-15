@@ -203,7 +203,7 @@ void TestPluginInterface(const char* path)
 	assert(factory(nullptr, nullptr) == nullptr);
 	auto* callbacks = static_cast<IServerPluginCallbacks*>(factory(INTERFACEVERSION_ISERVERPLUGINCALLBACKS, &result));
 	assert(callbacks != nullptr && result == IFACE_OK);
-	assert(std::strstr(callbacks->GetPluginDescription(), "L4FixesVSP 1.0.0") != nullptr);
+	assert(std::strstr(callbacks->GetPluginDescription(), "L4FixesVSP 1.1.0") != nullptr);
 	assert(!callbacks->Load(nullptr, nullptr));
 	callbacks->Unload();
 }

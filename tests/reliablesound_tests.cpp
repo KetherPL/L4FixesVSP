@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "reliablesound.h"
+#include "kether/reliablesound.h"
 
 #include "engine/IEngineSound.h"
 #include "mathlib/vector.h"

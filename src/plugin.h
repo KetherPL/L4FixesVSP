@@ -2,11 +2,12 @@
 #pragma once
 
 #include "patch.h"
+#include "kether/commands.h"
 #include "eiface.h"
 
 namespace l4fixes
 {
-inline constexpr char VERSION[] = "1.0.0";
+inline constexpr char VERSION[] = "1.1.0";
 
 class L4FixesVSP final : public IServerPluginCallbacks
 {
@@ -35,11 +36,8 @@ public:
 	void OnQueryCvarValueFinished(QueryCvarCookie_t, edict_t*, EQueryCvarValueStatus, const char*, const char*) override {}
 
 private:
-	void RegisterCommands(CreateInterfaceFn engineFactory, CreateInterfaceFn serverFactory, IVEngineServer* engine);
-	void UnregisterCommands() noexcept;
-
 	PatchManager m_patches;
-	bool m_commandsRegistered = false;
+	KetherCommands m_commands;
 	bool m_loaded = false;
 };
 }

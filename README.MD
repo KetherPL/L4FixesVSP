@@ -25,7 +25,7 @@ per-frame or per-player processing.
   [Reliable sounds](#reliable-sounds-te_reliable_sound).
 
 The Linux symbols, offsets, verification bytes and replacement bytes are compiled into
-`src/fixes.cpp`; the first three are ported from the corresponding SourcePawn gamedata. This version
+`src/ports/fixes.cpp` for the SourcePawn ports and `src/kether/fixes.cpp` for Kether's patches. This version
 supports L4D2 Linux x86 only. It does not contain Windows or L4D1 patch definitions.
 
 #### "No Steam logon" kicks
@@ -143,8 +143,10 @@ RUNTIME_LINKAGE=shared MAX_GLIBC=2.39 bash .github/verify_linux_so.sh build_shar
 
 `src/module.cpp` resolves bounded functions from ELF symbol tables and verifies their live executable
 segments. `src/patch.cpp` owns byte validation, temporary page permissions, enabling and restoration.
-`src/fixes.cpp` declares the game-specific patches, `src/reliablesound.cpp` implements
-`te_reliable_sound`, and `src/plugin.cpp` handles the VSP lifecycle and the command registration.
+`src/ports/fixes.cpp` declares the SourcePawn ports, and `src/kether/fixes.cpp` declares Kether's
+patches. `src/fixes.cpp` combines both groups and validates and registers their patches.
+`src/kether/reliablesound.cpp` implements `te_reliable_sound`, `src/kether/commands.cpp` owns its
+command registration, and `src/plugin.cpp` handles the VSP lifecycle.
 
 Revalidate offsets and instruction semantics against the actual dedicated-server binaries after game
 updates. The null-command gamedata supplies only a one-byte verifier (`C7`); that verifier is retained
@@ -156,11 +158,14 @@ independent of the plugin's own address space so cleanup does not leave dangling
 
 ### Changelog
 
-Unreleased:
+See [CHANGELOG.txt](CHANGELOG.txt) for the short release history.
+
+1.1.0:
 - "No Steam logon" kick fix (moved from Tickrate Enabler Remastered 1.9.0, as a one-byte engine patch
   that keeps the engine's own failure log).
 - `te_reliable_sound` server command (moved from Tickrate Enabler Remastered, same name and arguments).
 - The plugin links the SDK's tier1 statically and libtier0 for the console command.
+- Separated Kether fixes and SourcePawn ports into dedicated source directories.
 
 1.0.0:
 - Ported the null CUserCmd, HLTV crash and boomer ladder SourcePawn fixes to a native Linux VSP.

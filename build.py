@@ -77,10 +77,12 @@ def main():
                 '-l:libtier0_srv.so', '-l:libvstdlib_srv.so']
     if options.tests:
         run([sys.executable, repository / 'tests/test_build.py'])
-    sources = ['module', 'patch', 'fixes', 'reliablesound', 'plugin']
+    sources = ['module', 'patch', 'fixes', 'ports/fixes', 'kether/fixes',
+               'kether/reliablesound', 'kether/commands', 'plugin']
     objects = []
     for name in sources:
         target = build / (name + '.o')
+        target.parent.mkdir(parents=True, exist_ok=True)
         run([options.cxx] + flags + ['-O2', '-DNDEBUG', '-c', repository / 'src' / (name + '.cpp'), '-o', target])
         objects.append(target)
     package = build / 'package'
@@ -99,6 +101,7 @@ def main():
     shutil.copy2(repository / 'extra/l4fixes_vsp.vdf', package / 'addons/l4fixes_vsp.vdf')
     shutil.copy2(repository / 'LICENSE.txt', package / 'LICENSE.txt')
     shutil.copy2(repository / 'README.MD', package / 'README.MD')
+    shutil.copy2(repository / 'CHANGELOG.txt', package / 'CHANGELOG.txt')
     if options.tests:
         fixture = build / 'fixes_fixture.so'
         run([options.cxx, '-m32', '-shared', '-fPIC', '-Wl,-z,noexecstack',

@@ -1,0 +1,12 @@
+L4FixesVSP
+
+1.1.0
+- Added the "No Steam logon" kick fix and te_reliable_sound command from Tickrate Enabler Remastered.
+- Separated Kether fixes and SourcePawn ports into dedicated source directories.
+- Added optional shared C++ runtimes and SDK header compatibility for C++20/C++23 builds.
+- Avoided the GLIBC_ABI_GNU_TLS dependency introduced by newer linkers (for compatibility with Ubuntu 24.04 and older distros).
+
+1.0.0
+- Initial Linux i386 VSP with null CUserCmd, HLTV crash and Boomer ladder fixes ported from SourcePawn.
+- Added patch validation, rollback, ownership tracking and unload restoration.
+- Added C++20/C++23 builds, Linux packaging and sanitized regression tests.
