@@ -210,6 +210,8 @@ void TestPluginInterface(const char* path)
 }
 
 void TestReliableSound(); // reliablesound_tests.cpp
+void TestSteamReauth(const LoadedModule& module, void* steam3Server); // steamreauth_tests.cpp
+void TestCommands(); // commands_tests.cpp
 
 int main(int argumentCount, char** arguments)
 {
@@ -222,6 +224,8 @@ int main(int argumentCount, char** arguments)
 	TestFixes(module);
 	TestMemory();
 	TestReliableSound();
+	TestSteamReauth(module, fixture.Symbol("FixtureSteam3Server"));
+	TestCommands();
 	TestPluginInterface(arguments[2]);
 	std::puts("All L4FixesVSP regression tests passed.");
 }

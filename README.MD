@@ -4,9 +4,10 @@
 engine/game fixes. Its VSP lifecycle and patch ownership follow the approach used by [Tickrate
 Enabler Remastered](https://github.com/Krevik/Tickrate-Enabler-Remastered). It does not change the tickrate and can run alongside Tickrate Enabler.
 
-The fixes are instruction patches; the plugin also adds one server command, `te_reliable_sound`. No
-SourcePawn, SourceScramble, SourceMod or Metamod installation is required, and the plugin performs no
-per-frame or per-player processing.
+The fixes are instruction patches; the plugin also adds the server command `te_reliable_sound` and two
+commands for Steam re-authentication. No SourcePawn, SourceScramble, SourceMod or Metamod installation
+is required. The only per-frame work is Steam re-authentication, which looks at the connected clients
+every five seconds.
 
 ### Included fixes
 
@@ -20,6 +21,9 @@ per-frame or per-player processing.
 - **"No Steam logon" kicks** — moved from Tickrate Enabler Remastered 1.9.0. Players are no longer
   kicked when Steam answers their auth ticket with 1 (not connected to Steam), 6 (ticket canceled),
   7 (ticket already used) or 8 (ticket invalid). See ["No Steam logon" kicks](#no-steam-logon-kicks).
+- **Steam re-authentication (experimental)** — a client Steam has not validated gets its auth ticket
+  submitted to Steam again, so it can become authenticated (and known to SourceMod) without
+  reconnecting. See [Steam re-authentication](#steam-re-authentication-experimental).
 - **`te_reliable_sound`** — moved from Tickrate Enabler Remastered 1.8.0. A server command that plays a
   sound on the reliable stream, so packet loss can't drop it. See
   [Reliable sounds](#reliable-sounds-te_reliable_sound).
@@ -49,6 +53,44 @@ What it costs: the server stops enforcing those answers.
   still reports it as not authenticated, so SourceMod doesn't authorize it: no admin rights and no
   `OnClientAuthorized` / `OnClientPostAdminCheck`, which also means SourceMod-side ban checks don't run
   for it. Someone without a valid Steam session can therefore stay and play.
+  [Steam re-authentication](#steam-re-authentication-experimental) asks Steam about such a client again.
+
+#### Steam re-authentication (experimental)
+
+The engine asks Steam about a client once, when it connects. A client that was kept despite a failed
+answer (above), or that connected while Steam was down, stays unauthenticated until it reconnects, and
+SourceMod waits for exactly that state (`SteamAuthstringValidation` in `core.cfg`).
+
+The plugin keeps the auth ticket of every client the engine accepts. Every five seconds it looks at the
+connected humans, and for one the engine still reports as not authenticated it ends the client's auth
+session and begins it again with the stored ticket (`ISteamGameServer::EndAuthSession` /
+`BeginAuthSession`): first 10 seconds after the connection, then after 20, 40, 80 and 160 seconds, then
+every five minutes, 30 times at most (a little over two hours). Steam's answer goes through the engine's
+own handler, so a positive one marks the client authenticated, prints `STEAM USERID validated` and
+notifies the plugins (SourceMod then authorizes the client within a second), and a negative one is
+handled like the first: 1, 6, 7 and 8 are ignored, the others kick. Every attempt and every client
+validated this way is printed to the console and the server log as `[L4FixesVSP] Steam re-auth: ...`.
+The engine tells plugins about a positive answer only (`NetworkIDValidated`); a negative one is printed
+by the engine to the server console (`STEAMAUTH: Client ... received failure code ...`).
+
+- `l4fixes_steam_reauth_status` lists the connected clients, whether Steam validated them, the stored
+  tickets and attempts, and whether Steam has answered the last attempt positively.
+- `l4fixes_steam_reauth` submits the tickets of all unvalidated clients right away;
+  `l4fixes_steam_reauth <client index>` does it for one client even if it is already validated, which
+  shows how Steam answers a resubmitted ticket without waiting for an outage.
+
+Tested on a live server so far: Steam validated a ticket it had already validated once, 1.4 seconds
+after `l4fixes_steam_reauth <client index>` submitted it again. What is not known yet: whether the same
+holds for a ticket whose first submission failed or went unanswered during a Steam outage (the client's
+own Steam connection may have been down when it issued the ticket). If Steam answers 7 (ticket already
+used) or 8 (ticket invalid) to such a ticket, the retries change nothing and the client still has to
+reconnect. A retry can also get a client kicked that would otherwise have stayed, if Steam now answers
+with no license, a VAC ban, an account used elsewhere or a VAC check timeout.
+
+Unlike the other fixes this one redirects an engine call into the plugin: the `BeginAuthSession` call in
+`CSteam3Server::NotifyClientConnect` becomes a call to a plugin function that makes the original call
+and stores the ticket. Unloading the plugin restores the original instructions. Tickets are kept in
+memory only, for as long as their client is connected.
 
 #### Reliable sounds (te_reliable_sound)
 
@@ -83,21 +125,23 @@ written for it keep working.
 3. Copy the package's `addons` directory into the server's `left4dead2` directory. The files are
    `addons/l4fixes_vsp.vdf` and `addons/l4fixes_vsp/l4fixes_vsp.so`.
 4. Start the server. Check `plugin_print` and the `[L4FixesVSP]` startup messages for the status
-   of all fixes and the command.
+   of all fixes and the commands.
 
 All fixes must validate before the plugin enables any of them. Missing symbols or interfaces,
 incompatible bytes or a write failure cause loading to fail; any patches already applied by this load
 are rolled back. Private function symbols must be retained in the engine/server ELF images. If another
-plugin already registered `te_reliable_sound`, L4FixesVSP keeps that command and says so at startup.
+plugin already registered `te_reliable_sound`, L4FixesVSP keeps that command and says so at startup; its
+own commands with other names are registered as usual.
 
 An exact replacement-byte match is treated as an externally owned patch. L4FixesVSP reports it
 and leaves it untouched on unload. Other byte sequences must match the gamedata's original verifier. If another
 owner changes bytes after L4FixesVSP patches them, restoration refuses to overwrite the foreign
 bytes and logs the conflict. Remove the VDF and restart the server to uninstall permanently.
 
-Pausing the VSP keeps its fixes and the command enabled. Unloading restores the original bytes of
-patches owned by this VSP and unregisters the command. The replacement instructions do not reference
-plugin memory.
+Pausing the VSP keeps its fixes and the commands enabled but stops the automatic Steam
+re-authentication attempts. Unloading restores the original bytes of patches owned by this VSP and
+unregisters the commands. The replacement instructions do not reference plugin memory, except the one
+call Steam re-authentication installs, which unloading removes.
 
 ### Build and test
 
@@ -129,7 +173,10 @@ C++20 and C++23 mode and publishes separate `static` and `shared` C++20 packages
 Tests use synthetic shared-library functions, never a running game server. They exercise private
 ELF symbol lookup, malformed ELF rejection, all patch definitions, rollback, external ownership,
 page-permission restoration, inaccessible memory, `te_reliable_sound` argument parsing and emission
-(against a fake `IEngineSound`) and the exported VSP interface. UBSan is enabled for the test
+(against a fake `IEngineSound`), the Steam re-authentication schedule, call-site patch and auth session
+calls (against a fake Steam interface), command registration next to another plugin's
+`te_reliable_sound` (against the cvar system of the SDK's `libvstdlib_srv.so`) and the exported VSP
+interface. UBSan is enabled for the test
 executable.
 
 Build releases on Ubuntu 24.04 to match the glibc ceiling enforced by CI:
@@ -145,8 +192,10 @@ RUNTIME_LINKAGE=shared MAX_GLIBC=2.39 bash .github/verify_linux_so.sh build_shar
 segments. `src/patch.cpp` owns byte validation, temporary page permissions, enabling and restoration.
 `src/ports/fixes.cpp` declares the SourcePawn ports, and `src/kether/fixes.cpp` declares Kether's
 patches. `src/fixes.cpp` combines both groups and validates and registers their patches.
-`src/kether/reliablesound.cpp` implements `te_reliable_sound`, `src/kether/commands.cpp` owns its
-command registration, and `src/plugin.cpp` handles the VSP lifecycle.
+`src/kether/reliablesound.cpp` implements `te_reliable_sound`, `src/kether/commands.cpp` owns the
+command registration, and `src/plugin.cpp` handles the VSP lifecycle. `src/kether/authretry.cpp` decides
+when a client's ticket is submitted again and `src/kether/steamreauth.cpp` connects it to the engine: the
+call-site patch, the Steam interface calls and the two commands.
 
 Revalidate offsets and instruction semantics against the actual dedicated-server binaries after game
 updates. The null-command gamedata supplies only a one-byte verifier (`C7`); that verifier is retained
@@ -154,11 +203,18 @@ here, with additional function bounds and branch-target checks. These checks can
 a changed function still has the same semantics. The other fixes verify their full replaced
 instruction sequences; a fix that installs a relative jump declares its position (`branch`) so its
 target is checked against the function bounds. Add regression fixtures when adding a fix, and keep replacement instructions
-independent of the plugin's own address space so cleanup does not leave dangling code references.
+independent of the plugin's own address space so cleanup does not leave dangling code references
+(Steam re-authentication is the one exception; it also depends on the `ISteamGameServer` slots of
+`BeginAuthSession` and `EndAuthSession` and on the offset of the interface pointer in `CSteam3Server`,
+each of which it verifies against the engine's own instructions at load).
 
 ### Changelog
 
 See [CHANGELOG.txt](CHANGELOG.txt) for the short release history.
+
+Unreleased:
+- Steam re-authentication (experimental): clients Steam has not validated get their auth ticket
+  submitted again; `l4fixes_steam_reauth` and `l4fixes_steam_reauth_status` commands.
 
 1.1.0:
 - "No Steam logon" kick fix (moved from Tickrate Enabler Remastered 1.9.0, as a one-byte engine patch

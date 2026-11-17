@@ -16,14 +16,15 @@ public:
 	void Unload() override;
 	const char* GetPluginDescription() override;
 
-	// These are permanent instruction patches and one server command, with no per-frame or
-	// per-player work. Pause leaves the fixes and the command active; Unload restores patches
-	// owned by this VSP and unregisters the command.
+	// These are permanent instruction patches and server commands. The only per-frame work is
+	// Steam re-authentication (GameFrame), which looks at the clients every few seconds. Pause
+	// leaves the fixes and the commands active but stops those retries; Unload restores patches
+	// owned by this VSP and unregisters the commands.
 	void Pause() override {}
 	void UnPause() override {}
 	void LevelInit(const char*) override {}
 	void ServerActivate(edict_t*, int, int) override {}
-	void GameFrame(bool) override {}
+	void GameFrame(bool) override;
 	void LevelShutdown() override {}
 	void ClientActive(edict_t*) override {}
 	void ClientDisconnect(edict_t*) override {}
@@ -32,7 +33,7 @@ public:
 	void ClientSettingsChanged(edict_t*) override {}
 	PLUGIN_RESULT ClientConnect(bool*, edict_t*, const char*, const char*, char*, int) override { return PLUGIN_CONTINUE; }
 	PLUGIN_RESULT ClientCommand(edict_t*, const CCommand&) override { return PLUGIN_CONTINUE; }
-	PLUGIN_RESULT NetworkIDValidated(const char*, const char*) override { return PLUGIN_CONTINUE; }
+	PLUGIN_RESULT NetworkIDValidated(const char* userName, const char* networkId) override;
 	void OnQueryCvarValueFinished(QueryCvarCookie_t, edict_t*, EQueryCvarValueStatus, const char*, const char*) override {}
 
 private:

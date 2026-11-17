@@ -78,7 +78,8 @@ def main():
     if options.tests:
         run([sys.executable, repository / 'tests/test_build.py'])
     sources = ['module', 'patch', 'fixes', 'ports/fixes', 'kether/fixes',
-               'kether/reliablesound', 'kether/commands', 'plugin']
+               'kether/reliablesound', 'kether/commands', 'kether/authretry', 'kether/steamreauth',
+               'plugin']
     objects = []
     for name in sources:
         target = build / (name + '.o')
@@ -109,7 +110,8 @@ def main():
         executable = build / 'runtime_tests'
         test_sources = [repository / 'src' / (name + '.cpp') for name in sources if name != 'plugin']
         run([options.cxx] + flags + ['-g', '-fsanitize=undefined', '-fno-sanitize-recover=all',
-             repository / 'tests/runtime_tests.cpp', repository / 'tests/reliablesound_tests.cpp']
+             repository / 'tests/runtime_tests.cpp', repository / 'tests/reliablesound_tests.cpp',
+             repository / 'tests/steamreauth_tests.cpp', repository / 'tests/commands_tests.cpp']
             + test_sources + sdk_link + ['-Wl,-rpath,' + str(sdk_libraries), '-ldl', '-o', executable])
         run([executable, fixture, library])
     print('Package: {}'.format(package))
