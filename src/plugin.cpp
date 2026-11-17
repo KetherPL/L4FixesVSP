@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "plugin.h"
 #include "fixes.h"
+#include "kether/steamreauth.h"
 
 
 #include <cstdio>
@@ -58,8 +59,10 @@ bool L4FixesVSP::Load(CreateInterfaceFn engineFactory, CreateInterfaceFn serverF
 			serverModule.Path().c_str(), engineModule.Path().c_str());
 		// Resolve and validate every fix before writing any code.
 		RegisterFixes(m_patches, serverModule, engineModule);
+		InstallSteamReauth(m_patches, engineModule);
 		m_patches.EnableAll();
 		m_commands.Register(engineFactory, serverFactory, engine);
+		StartSteamReauth(serverFactory, engine);
 		m_loaded = true;
 		std::fprintf(stdout, "[L4FixesVSP] Version %s loaded; all %zu fixes are present.\n", VERSION,
 			FixDefinitions().size());
@@ -70,6 +73,7 @@ bool L4FixesVSP::Load(CreateInterfaceFn engineFactory, CreateInterfaceFn serverF
 		std::fprintf(stderr, "[L4FixesVSP] Load failed: %s\n", error.what());
 		m_commands.Unregister();
 		m_patches.Clear();
+		StopSteamReauth();
 		return false;
 	}
 }
@@ -77,8 +81,23 @@ bool L4FixesVSP::Load(CreateInterfaceFn engineFactory, CreateInterfaceFn serverF
 void L4FixesVSP::Unload()
 {
 	m_commands.Unregister();
+	// Restoring the call site first means the engine no longer hands tickets to the plugin.
 	m_patches.Clear();
+	StopSteamReauth();
 	m_loaded = false;
+}
+
+void L4FixesVSP::GameFrame(bool)
+{
+	if (m_loaded)
+		SteamReauthFrame();
+}
+
+PLUGIN_RESULT L4FixesVSP::NetworkIDValidated(const char*, const char* networkId)
+{
+	if (m_loaded)
+		SteamReauthValidated(networkId);
+	return PLUGIN_CONTINUE;
 }
 
 const char* L4FixesVSP::GetPluginDescription()

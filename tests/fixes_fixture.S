@@ -1,5 +1,5 @@
 /* Synthetic i386 functions with the gamedata's original bytes and bounded sizes.
- * They are never executed. Hidden symbols exercise .symtab lookup, not dlsym. */
+ * Only Steam3Server() is ever executed. Hidden symbols exercise .symtab lookup, not dlsym. */
 .text
 .globl FixtureAnchor
 .type FixtureAnchor, @function
@@ -46,4 +46,47 @@ _ZN13CSteam3Server34OnValidateAuthTicketResponseHelperEP11CBaseClient20EAuthSess
     .fill 0x90 - (. - _ZN13CSteam3Server34OnValidateAuthTicketResponseHelperEP11CBaseClient20EAuthSessionResponse), 1, 0x90
     ret
 .size _ZN13CSteam3Server34OnValidateAuthTicketResponseHelperEP11CBaseClient20EAuthSessionResponse, .-_ZN13CSteam3Server34OnValidateAuthTicketResponseHelperEP11CBaseClient20EAuthSessionResponse
+
+/* Steam re-authentication: the Steam interface load at 0xA7 and the BeginAuthSession call at 0xDA. */
+.globl _ZN13CSteam3Server19NotifyClientConnectEP11CBaseClientjR8netadr_sPKvj
+.hidden _ZN13CSteam3Server19NotifyClientConnectEP11CBaseClientjR8netadr_sPKvj
+.type _ZN13CSteam3Server19NotifyClientConnectEP11CBaseClientjR8netadr_sPKvj, @function
+_ZN13CSteam3Server19NotifyClientConnectEP11CBaseClientjR8netadr_sPKvj:
+    .fill 0xA7, 1, 0x90
+    .byte 0x8B, 0x4E, 0x04
+    .fill 0xDA - (. - _ZN13CSteam3Server19NotifyClientConnectEP11CBaseClientjR8netadr_sPKvj), 1, 0x90
+    .byte 0x8B, 0x45, 0x8C, 0xFF, 0x50, 0x68, 0x83, 0xF8, 0x05
+    ret
+.size _ZN13CSteam3Server19NotifyClientConnectEP11CBaseClientjR8netadr_sPKvj, .-_ZN13CSteam3Server19NotifyClientConnectEP11CBaseClientjR8netadr_sPKvj
+
+/* The EndAuthSession call at 0x7D. */
+.globl _ZN13CSteam3Server22NotifyClientDisconnectEP11CBaseClient
+.hidden _ZN13CSteam3Server22NotifyClientDisconnectEP11CBaseClient
+.type _ZN13CSteam3Server22NotifyClientDisconnectEP11CBaseClient, @function
+_ZN13CSteam3Server22NotifyClientDisconnectEP11CBaseClient:
+    .fill 0x7D, 1, 0x90
+    .byte 0xFF, 0x56, 0x6C
+    ret
+.size _ZN13CSteam3Server22NotifyClientDisconnectEP11CBaseClient, .-_ZN13CSteam3Server22NotifyClientDisconnectEP11CBaseClient
+
+/* Returns the fixture's CSteam3Server stand-in; the tests store a Steam interface at its offset 4. */
+.globl _Z12Steam3Serverv
+.hidden _Z12Steam3Serverv
+.type _Z12Steam3Serverv, @function
+_Z12Steam3Serverv:
+    call 1f
+1:
+    popl %eax
+    addl $(fixture_steam3_server - 1b), %eax
+    ret
+.size _Z12Steam3Serverv, .-_Z12Steam3Serverv
+
+.data
+.balign 4
+.globl FixtureSteam3Server
+.type FixtureSteam3Server, @object
+fixture_steam3_server:
+FixtureSteam3Server:
+    .long 0, 0
+.size FixtureSteam3Server, .-FixtureSteam3Server
 .section .note.GNU-stack,"",@progbits

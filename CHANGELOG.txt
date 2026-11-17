@@ -1,5 +1,9 @@
 L4FixesVSP
 
+Unreleased
+- Added experimental Steam re-authentication: the auth ticket of a client Steam has not validated is
+  submitted again, with the l4fixes_steam_reauth and l4fixes_steam_reauth_status commands.
+
 1.1.0
 - Added the "No Steam logon" kick fix and te_reliable_sound command from Tickrate Enabler Remastered.
 - Separated Kether fixes and SourcePawn ports into dedicated source directories.

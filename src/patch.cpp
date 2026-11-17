@@ -104,7 +104,8 @@ void WriteCode(std::uintptr_t address, std::span<const Byte> expected, std::span
 		}
 		++writableCount;
 	}
-	// No code paths or function pointers are redirected into the plugin's own image.
+	// Only the Steam auth ticket capture (kether/steamreauth.cpp) redirects a code path into the
+	// plugin's own image; every other patch is self-contained.
 	// Patch ranges have been checked and made writable before this single copy.
 	std::memcpy(reinterpret_cast<void*>(address), replacement.data(), replacement.size());
 	__builtin___clear_cache(reinterpret_cast<char*>(address), reinterpret_cast<char*>(address + replacement.size()));
